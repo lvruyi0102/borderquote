@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BorderQuote — 跨境报价 / 发票 / 工作说明书</title>
+<meta name="description" content="Free bilingual quote, invoice, and statement of work generator for freelancers selling to overseas clients. Runs in the browser. No account." />
+<style>
+:root { --bg:#0f1419; --card:#1a2332; --line:#2c3a4f; --text:#e7eef8; --muted:#93a4bd; --accent:#3dd6c6; --warn:#f0b429; }
+* { box-sizing: border-box; }
+body { margin:0; font-family: Georgia, "Songti SC", serif; background:var(--bg); color:var(--text); }
+header, main, footer { max-width: 980px; margin: 0 auto; padding: 24px; }
+header h1 { font-size: 32px; margin: 0 0 8px; }
+header p, .note { color: var(--muted); line-height: 1.5; }
+grid, .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+label { display:block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+input, select, textarea { width:100%; background:#0c1218; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:10px; font: 15px/1.4 ui-sans-serif, system-ui, sans-serif; }
+textarea { min-height: 88px; }
+button { background: var(--accent); color:#06211e; border:0; border-radius:8px; padding:12px 16px; font-weight:700; cursor:pointer; }
+button.secondary { background: transparent; color: var(--text); border:1px solid var(--line); }
+.card { background: var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+.doc { background:#fff; color:#1b1b1b; padding:28px; border-radius:12px; }
+.doc h2 { margin-top:0; }
+.row { display:flex; justify-content:space-between; gap:12px; }
+.muted { color:#667; }
+table { width:100%; border-collapse: collapse; }
+td { border-top:1px solid #ddd; padding:8px 0; vertical-align: top; }
+.warn { color: var(--warn); font-size: 13px; }
+@media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+@media print { body { background:#fff; } header, .card, footer, .noprint { display:none !important; } .doc { box-shadow:none; } }
+</style>
+</head>
+<body>
+<header>
+<h1>BorderQuote</h1>
+<p>给向海外客户卖服务的自由职业者：在浏览器里生成中英双语报价单、发票和工作说明书。不上传、不注册、不收费。数字只留在你的设备上。</p>
+<p class="warn">这不是律师、税务或会计意见。正式合同与报税仍需你自己的专业顾问确认。</p>
+</header>
+<main class="grid">
+<section class="card noprint">
+<label>Document</label>
+<select id="kind"><option value="quote">Quote / 报价单</option><option value="invoice">Invoice / 发票</option><option value="sow">Statement of work / 工作说明书</option></select>
+<label>Your name or studio / 出具方</label><input id="seller" value="Your Studio" />
+<label>Your email</label><input id="sellerEmail" placeholder="you@example.com" />
+<label>Client / 客户</label><input id="buyer" placeholder="Client legal name" />
+<label>Client email</label><input id="buyerEmail" placeholder="client@example.com" />
+<label>Currency</label>
+<select id="currency"><option>USD</option><option>EUR</option><option>GBP</option><option>CNY</option></select>
+<label>Line items, one per line: description | qty | unit price</label>
+<textarea id="items">Discovery workshop | 1 | 800
+Design and build | 1 | 4200
+Revision round | 2 | 300</textarea>
+<label>Payment terms</label>
+<input id="terms" value="50% to start, 50% on delivery. Payable in 7 days." />
+<label>Scope notes / 范围说明</label>
+<textarea id="scope">Deliverables are digital files only. Client provides content and feedback within 5 business days. Out-of-scope changes are quoted separately.</textarea>
+<div style="display:flex; gap:8px; margin-top:16px;">
+<button id="render" type="button">Generate</button>
+<button id="print" class="secondary" type="button">Print / PDF</button>
+</div>
+</section>
+<section>
+<article class="doc" id="doc"></article>
+</section>
+</main>
+<footer class="noprint"><p class="note">BorderQuote is a free lead tool under Project 2B. Income is not collected here. A paid pack is not live until a payout account exists.</p></footer>
+<script>
+function money(n, c) { return new Intl.NumberFormat('en-US', { style:'currency', currency:c }).format(n); }
+function parseItems(text) {
+  return text.split(/\n/).map(l => l.trim()).filter(Boolean).map(line => {
+    const p = line.split('|').map(s => s.trim());
+    const qty = Number(p[1] || 1);
+    const price = Number(p[2] || 0);
+    return { desc: p[0] || 'Item', qty: Number.isFinite(qty)?qty:1, price: Number.isFinite(price)?price:0 };
+  });
+}
+function build() {
+  const kind = document.getElementById('kind').value;
+  const seller = document.getElementById('seller').value || 'Seller';
+  const sellerEmail = document.getElementById('sellerEmail').value;
+  const buyer = document.getElementById('buyer').value || 'Client';
+  const buyerEmail = document.getElementById('buyerEmail').value;
+  const currency = document.getElementById('currency').value;
+  const terms = document.getElementById('terms').value;
+  const scope = document.getElementById('scope').value;
+  const items = parseItems(document.getElementById('items').value);
+  const total = items.reduce((s, it) => s + it.qty * it.price, 0);
+  const no = kind.slice(0,3).toUpperCase() + '-' + new Date().toISOString().slice(0,10).replace(/-/g,'');
+  const title = {quote:'Quotation / 报价单', invoice:'Invoice / 发票', sow:'Statement of Work / 工作说明书'}[kind];
+  const rows = items.map(it => `<tr><td>${it.desc}</td><td>${it.qty}</td><td>${money(it.price, currency)}</td><td>${money(it.qty*it.price, currency)}</td></tr>`).join('');
+  document.getElementById('doc').innerHTML = `
+    <div class="row"><h2>${title}</h2><div class="muted">${no}<br>${new Date().toISOString().slice(0,10)}</div></div>
+    <div class="row"><div><strong>From / 出具方</strong><br>${seller}<br>${sellerEmail}</div><div><strong>To / 客户</strong><br>${buyer}<br>${buyerEmail}</div></div>
+    <table><thead><tr><td>Description</td><td>Qty</td><td>Price</td><td>Amount</td></tr></thead><tbody>${rows}</tbody></table>
+    <p><strong>Total / 合计：${money(total, currency)}</strong></p>
+    <p><strong>Payment terms</strong><br>${terms}</p>
+    <p><strong>Scope</strong><br>${scope}</p>
+    <p class="muted">This document is a commercial draft generated locally. It is not tax advice and does not create a payment obligation until both parties accept it.</p>`;
+}
+document.getElementById('render').onclick = build;
+document.getElementById('print').onclick = () => { build(); window.print(); };
+build();
+</script>
+</body>
+</html>
